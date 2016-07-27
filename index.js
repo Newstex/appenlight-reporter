@@ -25,7 +25,6 @@ var PROTOCOL_VERSION = '0.5';
  * 	server_name: (optional) Server name to send instead of the default os.hostname();
  */
 function AppEnlightReporter(config){
-	this.config = config;
 	if(!config || !config.api_key){
 		throw new Error('API Key is required');
 	}
@@ -35,6 +34,7 @@ function AppEnlightReporter(config){
 	if(!config.server_name){
 		config.server_name = HOSTNAME;
 	}
+	this.config = config;
 }
 
 /**
@@ -47,9 +47,9 @@ function AppEnlightReporter(config){
 AppEnlightReporter.prototype.makeRequest = function makeRequest(api, data, callback){
 	request({
 		method: 'POST',
-		uri: this.options.endpoint + api + '?protocol_version=' + PROTOCOL_VERSION,
+		uri: this.config.endpoint + api + '?protocol_version=' + PROTOCOL_VERSION,
 		headers: {
-			'X-appenlight-api-key': this.api_key,
+			'X-appenlight-api-key': this.config.api_key,
 		},
 		json: data,
 	}, function(e,r,b){
@@ -76,9 +76,29 @@ AppEnlightReporter.prototype.sendMetrics = function sendMetrics(namespace, vals,
 	this.makeRequest('general_metrics', [{
 		timestamp: (new Date()).toISOString(),
 		namespace: namespace,
-		server_name: this.options.server_name,
+		server_name: this.config.server_name,
 		tags: vals,
 	}], callback);
+};
+
+/**
+ * Send an error or "slow call" report
+ *
+ * @see: https://getappenlight.com/page/api/0.5/reports.html
+ *
+ * @param options: See available options at: https://getappenlight.com/page/api/0.5/reports.html
+ * @param callback: (Optional) An optional callback to return the results to
+ */
+AppEnlightReporter.prototype.sendReport = function sendReport(options, callback){
+	options.client = 'node-appenlight-reporter';
+	options.language = 'node.js';
+	if(!options.server){
+		options.server = this.config.server;
+	}
+	if(!options.end_time){
+		options.end_time = (new Date()).toISOString();
+	}
+	this.makeRequest('reports', [options], callback);
 };
 
 module.exports = AppEnlightReporter;
